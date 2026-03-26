@@ -6,3 +6,6 @@ stress_report.html
 dist/
 build/
 .env
+node_modules/
+dist/
+package-lock.json
