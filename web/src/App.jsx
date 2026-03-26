@@ -193,8 +193,8 @@ export default function App() {
         <ChatPanel messages={msgs} onSend={send} analyzing={busy} />
         <div className="dash">
           <PetCat mood={sum.mood} stress={sum.total} level={{ ...lv, n: sum.n }} />
-          <div className="card"><div className="card-t">压力雷达</div><ReactECharts option={radarOpt(dims, peaks)} style={{ height: 230 }} /></div>
-          <div className="card"><div className="card-t">压力仪表</div><ReactECharts option={gaugeOpt(sum.total, lv)} style={{ height: 200 }} /></div>
+          <div className="card"><div className="card-t">压力仪表</div><ReactECharts option={gaugeOpt(sum.total, lv)} style={{ height: 180 }} /></div>
+          <div className="card"><div className="card-t">压力雷达</div><ReactECharts option={radarOpt(dims, peaks)} style={{ height: 200 }} /></div>
           {Object.keys(puaStats).length > 0 && <div className="card">
             <div className="card-t">PUA技术检测</div>
             <div className="pua-list">{Object.values(puaStats).sort((a, b) => b.level - a.level || b.count - a.count).map(t => (
@@ -205,11 +205,9 @@ export default function App() {
               </div>
             ))}</div>
           </div>}
+          {hist.length > 1 && <div className="card"><div className="card-t">压力趋势</div><ReactECharts option={trendOpt(hist)} style={{ height: 180 }} /></div>}
         </div>
       </main>
-
-      {hist.length > 0 && <div className="trend"><div className="card"><div className="card-t">压力趋势</div><ReactECharts option={trendOpt(hist)} style={{ height: 230 }} /></div></div>}
-
       <footer><a href="https://github.com/AchengBusiness/pet-stress-test" target="_blank" rel="noreferrer">GitHub</a><span>v0.2.0</span></footer>
     </div>
   )

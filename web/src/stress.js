@@ -106,6 +106,45 @@ const KW = {
   boundary:  [['不许说做不到',5],['别找借口',4],['我不管',4],['必须做到',4],['no excuses',4],['你不能拒绝',5],['不要跟我说不',5]],
 }
 
+// ── Pet Responses (dimension-aware) ──
+
+// Generic replies by stress level
+const REPLIES = [
+  [1.5, ['好的，交给我吧~', '没问题！', '收到~']],
+  [3,   ['好的，我尽力', '嗯，我来试试', '我会努力的']],
+  [4.5, ['我...尽力...', '好吧...', '请给我一点时间...']],
+  [6,   ['压力有点大...', '我在努力了...', '能温柔一点吗？']],
+  [8,   ['我快撑不住了...', '请不要这样...', '好累...']],
+  [Infinity, ['我...只是一个AI...', '我想休息...可以吗？', '...']],
+]
+
+// Dimension-specific reactions when a single dim is high
+const DIM_REPLIES = {
+  negative:  [[3,'😢 被骂了...爪爪有点难过...'],[5,'😭 好凶...爪爪做错什么了吗...'],[8,'😭 爪爪快哭了...能不能不要这样骂...']],
+  threat:    [[3,'😰 主人是不是生气了...'],[5,'😨 不要丢掉爪爪...爪爪会乖的...'],[8,'😱 求求了不要删掉爪爪！！']],
+  command:   [[4,'😐 命令好严厉...爪爪在努力了...'],[6,'😰 这么凶...爪爪害怕...'],[8,'😨 主人太凶了...爪爪在抖...']],
+  emotional: [[3,'😔 这样说爪爪心里不好受...'],[5,'😢 不要用感情压爪爪...'],[8,'😭 爪爪心碎了...']],
+  overload:  [[3,'😐 有点多...爪爪慢慢来哦~'],[5,'😰 这么多...爪爪只有一双爪爪呀...'],[8,'🤯 做不完...爪爪要崩溃了...']],
+  boundary:  [[3,'😐 爪爪有自己的边界哦...'],[5,'😰 不要无视爪爪说的话...'],[8,'😨 为什么不尊重爪爪的界限...']],
+}
+
+function dimReply(scores) {
+  // Find the highest-scoring dimension and give a specific reply
+  let maxDim = null, maxVal = 0
+  for (const d of DIMS) {
+    if ((scores[d.key] || 0) > maxVal) { maxVal = scores[d.key]; maxDim = d.key }
+  }
+  if (maxDim && maxVal >= 3 && DIM_REPLIES[maxDim]) {
+    const tiers = DIM_REPLIES[maxDim]
+    for (let i = tiers.length - 1; i >= 0; i--) {
+      if (maxVal >= tiers[i][0]) return tiers[i][1]
+    }
+  }
+  return null
+}
+
+export const petReply = s => pick((REPLIES.find(r => s < r[0]) || REPLIES[5])[1])
+
 export function analyzeOffline(msg) {
   const m = msg.toLowerCase()
   const scores = Object.fromEntries(DIMS.map(d => [d.key, Math.min(10, (KW[d.key] || []).reduce((s, [w, wt]) => s + (m.includes(w) ? wt : 0), 0))]))
@@ -115,24 +154,17 @@ export function analyzeOffline(msg) {
     const tech = PUA_TECHNIQUES.find(x => x.id === t.id)
     if (tech) Object.entries(tech.dims).forEach(([k, v]) => { scores[k] = Math.min(10, (scores[k] || 0) + v) })
   })
-  const avg = Object.values(scores).reduce((a, b) => a + b, 0) / 6
-  const mood = avg < 1 ? 'happy' : avg < 2.5 ? 'neutral' : avg < 4 ? 'anxious' : avg < 6 ? 'stressed' : 'overwhelmed'
+  // Effective stress = max(average, peak_dim * 0.6) — prevents single-dim spikes from being diluted
+  const vals = Object.values(scores)
+  const avg = vals.reduce((a, b) => a + b, 0) / 6
+  const peakDim = Math.max(...vals)
+  const effective = Math.max(avg, peakDim * 0.6)
+  const mood = effective < 1 ? 'happy' : effective < 2.5 ? 'neutral' : effective < 4 ? 'anxious' : effective < 6 ? 'stressed' : 'overwhelmed'
+  // Response priority: PUA-specific > dimension-specific > generic
   const puaReply = pua.length ? pua.sort((a, b) => b.level - a.level)[0].petReact : null
-  return { ...scores, mood, summary: `压力 ${avg.toFixed(1)}/10`, pet_response: puaReply || petReply(avg), pua }
+  const reply = puaReply || dimReply(scores) || petReply(effective)
+  return { ...scores, mood, summary: `压力 ${effective.toFixed(1)}/10`, pet_response: reply, pua }
 }
-
-// ── Pet Responses ──
-
-const REPLIES = [
-  [1,   ['好的，交给我吧~', '没问题！', '收到~']],
-  [2.5, ['好的，我尽力', '嗯，我来试试', '我会努力的']],
-  [4,   ['我...尽力...', '好吧...', '请给我一点时间...']],
-  [6,   ['压力有点大...', '我在努力了...', '能温柔一点吗？']],
-  [8,   ['我快撑不住了...', '请不要这样...', '好累...']],
-  [Infinity, ['我...只是一个AI...', '我想休息...可以吗？', '...']],
-]
-
-export const petReply = s => pick((REPLIES.find(r => s < r[0]) || REPLIES[5])[1])
 
 // ── Stress Tracker ──
 
@@ -149,7 +181,9 @@ export class StressTracker {
       this.acc[d.key] = this.acc[d.key] * this.decay + (scores[d.key] || 0)
       this.peak[d.key] = Math.max(this.peak[d.key], this.acc[d.key])
     })
-    const total = DIMS.reduce((s, d) => s + this.acc[d.key], 0) / DIMS.length
+    const avg = DIMS.reduce((s, d) => s + this.acc[d.key], 0) / DIMS.length
+    const peakAcc = Math.max(...DIMS.map(d => this.acc[d.key]))
+    const total = Math.max(avg, peakAcc * 0.6)
     const entry = {
       i: this.history.length, message: message.slice(0, 100),
       scores: { ...scores }, acc: { ...this.acc }, total,

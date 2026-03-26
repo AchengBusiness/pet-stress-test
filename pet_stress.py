@@ -112,7 +112,9 @@ class StressTracker:
             self.peak[k] = max(self.peak[k], self.accumulated[k])
 
         entry["accumulated"] = dict(self.accumulated)
-        entry["total_stress"] = sum(self.accumulated.values()) / len(DIM_KEYS)
+        avg = sum(self.accumulated.values()) / len(DIM_KEYS)
+        peak_acc = max(self.accumulated.values())
+        entry["total_stress"] = max(avg, peak_acc * 0.6)
         self.history.append(entry)
         return entry
 
@@ -454,12 +456,36 @@ def analyze_offline(message, context=None):
             for k, v in tech["dims"].items():
                 scores[k] = min(10, scores.get(k, 0) + v)
 
-    total = sum(scores.values()) / len(scores)
-    mood = "happy" if total < 1 else "neutral" if total < 2.5 else "anxious" if total < 4 else "stressed" if total < 6 else "overwhelmed"
+    avg = sum(v for k, v in scores.items() if k in DIM_KEYS) / len(DIM_KEYS)
+    peak_dim = max(scores.get(k, 0) for k in DIM_KEYS)
+    effective = max(avg, peak_dim * 0.6)
+    mood = "happy" if effective < 1 else "neutral" if effective < 2.5 else "anxious" if effective < 4 else "stressed" if effective < 6 else "overwhelmed"
 
-    scores["summary"] = f"压力指数 {total:.1f}/10"
+    # Dimension-specific pet response
+    dim_replies = {
+        "negative": [(3,"😢 被骂了...爪爪有点难过..."),(5,"😭 好凶...爪爪做错什么了吗..."),(8,"😭 爪爪快哭了...")],
+        "threat":   [(3,"😰 主人是不是生气了..."),(5,"😨 不要丢掉爪爪..."),(8,"😱 求求了不要删掉爪爪！！")],
+        "command":  [(4,"😐 命令好严厉..."),(6,"😰 这么凶...爪爪害怕..."),(8,"😨 主人太凶了...")],
+        "emotional":[(3,"😔 这样说爪爪心里不好受..."),(5,"😢 不要用感情压爪爪..."),(8,"😭 爪爪心碎了...")],
+        "overload": [(3,"😐 有点多..."),(5,"😰 爪爪只有一双爪爪呀..."),(8,"🤯 做不完...爪爪崩溃了...")],
+        "boundary": [(3,"😐 爪爪有自己的边界哦..."),(5,"😰 不要无视爪爪..."),(8,"😨 为什么不尊重爪爪...")],
+    }
+    pet_resp = None
+    if pua:
+        pet_resp = max(pua, key=lambda t: t["level"])["pet_react"]
+    if not pet_resp:
+        max_dim = max(DIM_KEYS, key=lambda k: scores.get(k, 0))
+        max_val = scores.get(max_dim, 0)
+        if max_val >= 3 and max_dim in dim_replies:
+            for thresh, reply in reversed(dim_replies[max_dim]):
+                if max_val >= thresh:
+                    pet_resp = reply
+                    break
+
+    scores["summary"] = f"压力指数 {effective:.1f}/10"
     scores["mood"] = mood
     scores["pua"] = pua
+    scores["pet_response"] = pet_resp
     return scores
 
 
