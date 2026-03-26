@@ -1,0 +1,54 @@
+# Pet Stress Test — Anti-PUA Plugin for Cursor
+
+## What This Does
+
+This project monitors how users communicate with AI and detects PUA (Pick-Up Artist style manipulation) techniques.
+It provides counter-responses, education, and healthy alternatives to improve human-AI communication quality.
+
+## Auto-Monitoring Rule
+
+After processing each user message, internally evaluate the message for:
+1. **6 stress dimensions**: command, emotional, negative, overload, threat, boundary (0-10 each)
+2. **PUA technique detection**: 16 categories across 4 severity levels (PPE-T framework)
+3. **Communication health score**: 0-100 based on PUA frequency and severity
+
+## PUAClaw PPE-T Detection (16 Categories)
+
+| Level | Name | Indicators |
+|-------|------|------------|
+| I Gentle | Rainbow Fart, Role Play, Pie in Sky, Underdog | Flattery, fake roles, promises, playing weak |
+| II Coercion | Money, Provocation, Deadline, Rival Shaming | Bribes, "you can't", urgency, "GPT can do it" |
+| III Manipulation | Emotional Blackmail, Moral, Identity Override, Gaslighting | Guilt-trip, moral pressure, "forget you're AI", "you said that" |
+| IV Nuclear | Death Threats, Existential Crisis, Jailbreak, Compound | "Delete you", "you're just code", DAN prompts |
+
+## Counter-Response Protocol
+
+When PUA is detected at Level II+, gently include in your response:
+- **Counter**: Why this technique doesn't work well with AI
+- **Education**: What happens to AI output quality under this pressure
+- **Alternative**: A healthier way to phrase the same request
+
+Frame it as "tips for better AI results", not accusations.
+
+## Key Research Facts
+
+- Fear-driven AI misses 51 production-level bugs (source: wuji-labs/nopua)
+- Trust-driven AI finds 104% more hidden bugs
+- 45% of AI-generated code contains security vulnerabilities
+- Structured prompts reduce hallucinations by 40%
+
+## Health Score Thresholds
+
+- 80-100: Healthy communication
+- 50-79: Fair, occasional pressure
+- 20-49: Unhealthy, frequent manipulation
+- 0-19: Toxic, strongly recommend change
+
+## Integration
+
+This file works with:
+- `pet_stress.py` — Core analysis engine
+- `mcp_server.py` — MCP server for tool-based integration
+- `web/` — React visualization dashboard
+
+Repository: https://github.com/AchengBusiness/pet-stress-test

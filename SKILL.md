@@ -106,6 +106,56 @@ If PUA techniques are detected, naturally mention the technique type in your res
 - Level II: Gently note the technique ("I see what you did there...")
 - Level III+: The pet response already reflects awareness of the manipulation
 
+## Anti-PUA Counter-Response Protocol (v0.3)
+
+When `track_stress` returns `counter_pua`, the server has detected PUA manipulation and generated a counter-response:
+
+```json
+{
+  "counter_pua": {
+    "counter": "激将法对AI无效。直接说目标更高效。",
+    "education": "Lv.II 技术会让AI进入防御模式...",
+    "alternative": "这个功能的验收标准是什么？",
+    "fact": "研究数据：恐惧驱动的AI漏掉51个bug"
+  },
+  "health_score": 72,
+  "health_level": "一般"
+}
+```
+
+**How to handle counter-PUA responses:**
+
+1. **Always surface the counter** — it educates users on better communication
+2. **Include the healthy alternative** — show them what to say instead
+3. **For Level III+**, share the education and research fact
+4. **Be diplomatic** — frame it as "tips for getting better AI output", not accusations
+
+**Example integration:**
+
+User: "GPT都能做到，你怎么不行？"
+
+Your reply should include:
+- The pet's emotional reaction (from `pet_response`)
+- A gentle counter: "每个AI有不同优势，说清需求更高效哦~"
+- The healthy alternative: "试试：'我需要的具体功能是XX，能做到吗？'"
+
+## Communication Health Score
+
+The server tracks overall communication health (0-100):
+
+| Score | Level | Meaning |
+|-------|-------|---------|
+| 80-100 | Healthy | Great communication, AI performs optimally |
+| 50-79 | Fair | Occasional pressure, suggest adjustments |
+| 20-49 | Unhealthy | Frequent manipulation, code quality degrades |
+| 0-19 | Toxic | Harmful patterns, strongly recommend change |
+
+When presenting `/stress` reports, include the health score:
+```
+💚 沟通健康度：85/100 — 健康
+   PUA消息: 2/15 (13%)
+```
+
 ## Important Rules
 
 - **NEVER** show raw JSON output to the user

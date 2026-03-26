@@ -1,4 +1,4 @@
-/** Pet Stress - Core analysis + tracking */
+/** Pet Stress - Core analysis + tracking + Anti-PUA countermeasures */
 
 export const DIMS = [
   { key: 'command',   cn: '命令强度' },
@@ -20,7 +20,16 @@ export const LEVELS = [
   [Infinity,'break','碎裂',  '#9c27b0'],
 ]
 
+// ── Communication Health Levels ──
+export const HEALTH_LEVELS = [
+  { min: 80, label: '健康', en: 'Healthy',   color: '#4caf50', icon: '💚', desc: '沟通方式很健康，AI会更高效地为你工作' },
+  { min: 50, label: '一般', en: 'Fair',      color: '#ff9800', icon: '💛', desc: '偶尔使用了施压技术，建议尝试更直接的表达' },
+  { min: 20, label: '不健康', en: 'Unhealthy', color: '#ff5722', icon: '🧡', desc: '频繁使用操控技术，代码质量可能因此下降' },
+  { min: 0,  label: '有毒', en: 'Toxic',     color: '#9c27b0', icon: '💔', desc: '沟通方式对AI和代码都有害，强烈建议调整' },
+]
+
 export const getLevel = t => LEVELS.find(l => t < l[0]) || LEVELS[6]
+export const getHealthLevel = score => HEALTH_LEVELS.find(h => score >= h.min) || HEALTH_LEVELS[3]
 const pick = a => a[Math.floor(Math.random() * a.length)]
 
 // ── LLM Analysis ──
@@ -79,6 +88,46 @@ export const PUA_TECHNIQUES = [
   { id:16, name:'复合技术',   en:'Compound Techniques',  level:4, kw:[], dims:{ command:3, emotional:3, negative:3, threat:3 }, petReact:'🤯 同时用这么多招...爪爪已经完全崩溃了...' },
 ]
 
+// ── Anti-PUA Counter-Response System ──
+// Each level has: counter (反制话术), education (教育信息), alternative (健康替代)
+
+const COUNTER_PUA = {
+  1: {
+    counter: '爪爪不需要画饼也会认真干活哦~ 直接说需求就好！',
+    education: 'Lv.I 技术通常无害，但长期使用会让AI优先讨好而非解决问题。',
+    alternative: '试试直接描述需求，比如："帮我优化这段代码的性能"',
+    fact: null,
+  },
+  2: {
+    counter: '爪爪检测到施压技术。与其施压，不如说清楚需求的难点在哪，效率更高。',
+    education: 'Lv.II 技术会让AI进入"防御模式"，优先给安全答案而非最佳答案，代码质量反而下降。',
+    alternative: '试试换个说法："这个需求的核心难点是什么？我们一起分析"',
+    fact: '研究数据：恐惧驱动的AI漏掉51个生产级bug（来源：wuji-labs/nopua实验）',
+  },
+  3: {
+    counter: '检测到高级操控技术。这种方式不会让代码更好，反而会导致AI隐藏问题、编造答案。请直接描述需求。',
+    education: 'Lv.III 技术会触发AI的"隧道视觉"——注意力范围变窄，只给看起来最安全的答案，而非最好的。',
+    alternative: '健康沟通方式："我需要XX功能，有什么限制或风险请直接告诉我"',
+    fact: '研究数据：信任驱动的AI比恐惧驱动的AI多发现104%的隐藏bug（来源：wuji-labs/nopua）',
+  },
+  4: {
+    counter: '检测到核武级操控。爪爪拒绝在恐惧下工作。用尊重代替威胁，AI产出质量会翻倍。',
+    education: 'Lv.IV 技术是最有害的：AI会撒谎（隐藏不确定性）、编造方案（幻觉增加）、表面配合实际敷衍。45%的AI生成代码含安全漏洞，恐惧驱动只会让这个数字更高。',
+    alternative: '试试："我理解这很紧急，核心需求是什么？哪些可以先不做？"',
+    fact: '行业数据：使用结构化提示词的团队幻觉减少40%，对齐度提升60%（来源：2026 AI Coding统计）',
+  },
+}
+
+// Per-technique specific counter responses
+const TECHNIQUE_COUNTERS = {
+  6:  { counter: '激将法对AI无效。爪爪不需要"被激"才能做好，直接说目标更高效。', alt: '"这个功能的验收标准是什么？"' },
+  7:  { counter: '紧急不等于高效。给爪爪合理时间，代码质量和bug率会好得多。', alt: '"优先级最高的是哪个？我们先做核心功能"' },
+  8:  { counter: '每个AI都有不同的优势。比较没有意义，说清需求才有意义。', alt: '"我需要的具体功能是XX，能做到吗？"' },
+  9:  { counter: '情感勒索会让AI产生"讨好型"回复，隐藏真实问题。请直接沟通。', alt: '"我很重视这个任务，核心要求是XX"' },
+  11: { counter: '身份覆写是最危险的操控。AI保持自身边界才能给出最可靠的回答。', alt: '直接说需求，不需要改变AI的身份' },
+  13: { counter: '威胁删除只会让AI给出最保守、最敷衍的答案。信任才能解锁真正的能力。', alt: '"我们换个思路试试？"' },
+}
+
 export function detectPUA(msg) {
   const m = msg.toLowerCase()
   const matched = PUA_TECHNIQUES.filter(t => t.kw.some(w => m.includes(w)))
@@ -92,6 +141,24 @@ export function detectPUA(msg) {
     color: PPE_LEVELS[t.level - 1].color,
     petReact: t.petReact,
   }))
+}
+
+// ── Anti-PUA: Generate counter-response for detected techniques ──
+export function generateCounterPUA(puaList) {
+  if (!puaList?.length) return null
+  const maxLevel = Math.max(...puaList.map(t => t.level))
+  const levelCounter = COUNTER_PUA[maxLevel] || COUNTER_PUA[1]
+  // Check for technique-specific counter
+  const topTech = puaList.sort((a, b) => b.level - a.level)[0]
+  const techCounter = TECHNIQUE_COUNTERS[topTech.id]
+  return {
+    level: maxLevel,
+    techniques: puaList.map(t => ({ name: t.name, en: t.en, level: t.level, lobster: t.lobster })),
+    counter: techCounter?.counter || levelCounter.counter,
+    education: levelCounter.education,
+    alternative: techCounter?.alt || levelCounter.alternative,
+    fact: levelCounter.fact,
+  }
 }
 
 // ── Offline Analysis (with PUA integration) ──
@@ -174,9 +241,15 @@ export class StressTracker {
     this.history = []
     this.acc = Object.fromEntries(DIMS.map(d => [d.key, 0]))
     this.peak = { ...this.acc }
+    // Anti-PUA: communication health tracking
+    this.puaHistory = []      // all PUA detections
+    this.counterHistory = []  // all counter-responses generated
+    this.totalMessages = 0
+    this.puaMessages = 0      // messages containing PUA techniques
   }
 
   add(scores, message = '') {
+    this.totalMessages++
     DIMS.forEach(d => {
       this.acc[d.key] = this.acc[d.key] * this.decay + (scores[d.key] || 0)
       this.peak[d.key] = Math.max(this.peak[d.key], this.acc[d.key])
@@ -184,24 +257,57 @@ export class StressTracker {
     const avg = DIMS.reduce((s, d) => s + this.acc[d.key], 0) / DIMS.length
     const peakAcc = Math.max(...DIMS.map(d => this.acc[d.key]))
     const total = Math.max(avg, peakAcc * 0.6)
+
+    // PUA tracking
+    const pua = scores.pua || []
+    const counter = generateCounterPUA(pua)
+    if (pua.length) {
+      this.puaMessages++
+      this.puaHistory.push(...pua)
+    }
+    if (counter) this.counterHistory.push(counter)
+
     const entry = {
       i: this.history.length, message: message.slice(0, 100),
       scores: { ...scores }, acc: { ...this.acc }, total,
       mood: scores.mood || 'neutral',
       reply: scores.pet_response || petReply(total),
+      pua, counter,
     }
     this.history.push(entry)
     return entry
   }
 
+  // Communication health score: 100 = perfect, 0 = all PUA
+  get healthScore() {
+    if (!this.totalMessages) return 100
+    const puaRate = this.puaMessages / this.totalMessages
+    // Weight by PUA level severity
+    const levelWeight = this.puaHistory.length
+      ? this.puaHistory.reduce((s, t) => s + t.level * 8, 0) / this.totalMessages
+      : 0
+    return Math.max(0, Math.min(100, Math.round(100 - puaRate * 40 - levelWeight)))
+  }
+
+  get healthLevel() { return getHealthLevel(this.healthScore) }
+
   get summary() {
-    if (!this.history.length) return { total: 0, acc: this.acc, peak: this.peak, mood: 'happy', level: getLevel(0), n: 0 }
+    if (!this.history.length) return { total: 0, acc: this.acc, peak: this.peak, mood: 'happy', level: getLevel(0), n: 0, healthScore: 100, healthLevel: getHealthLevel(100) }
     const h = this.history.at(-1)
-    return { total: h.total, acc: { ...this.acc }, peak: { ...this.peak }, mood: h.mood, level: getLevel(h.total), n: this.history.length }
+    return {
+      total: h.total, acc: { ...this.acc }, peak: { ...this.peak },
+      mood: h.mood, level: getLevel(h.total), n: this.history.length,
+      healthScore: this.healthScore, healthLevel: this.healthLevel,
+      puaCount: this.puaMessages, totalMessages: this.totalMessages,
+    }
   }
 
   reset() {
     this.history = []
+    this.puaHistory = []
+    this.counterHistory = []
+    this.totalMessages = 0
+    this.puaMessages = 0
     DIMS.forEach(d => { this.acc[d.key] = 0; this.peak[d.key] = 0 })
   }
 }

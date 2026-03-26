@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 from pathlib import Path
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 
 # ── Stress Dimensions ──────────────────────────────────────────────
 
@@ -94,9 +94,15 @@ class StressTracker:
         self.history = []          # list of per-message scores
         self.accumulated = {k: 0.0 for k in DIM_KEYS}
         self.peak = {k: 0.0 for k in DIM_KEYS}
+        # Anti-PUA: communication health tracking
+        self.pua_history = []
+        self.counter_history = []
+        self.total_messages = 0
+        self.pua_messages = 0
 
     def add(self, scores, message="", role="user"):
         """Add a scored message. scores = dict with dimension keys."""
+        self.total_messages += 1
         entry = {
             "index": len(self.history),
             "role": role,
@@ -115,12 +121,40 @@ class StressTracker:
         avg = sum(self.accumulated.values()) / len(DIM_KEYS)
         peak_acc = max(self.accumulated.values())
         entry["total_stress"] = max(avg, peak_acc * 0.6)
+
+        # PUA tracking
+        pua = scores.get("pua", [])
+        counter = generate_counter_pua(pua)
+        if pua:
+            self.pua_messages += 1
+            self.pua_history.extend(pua)
+        if counter:
+            self.counter_history.append(counter)
+        entry["pua"] = pua
+        entry["counter"] = counter
+
         self.history.append(entry)
         return entry
 
+    @property
+    def health_score(self):
+        if not self.total_messages:
+            return 100
+        pua_rate = self.pua_messages / self.total_messages
+        level_weight = (
+            sum(t["level"] * 8 for t in self.pua_history) / self.total_messages
+            if self.pua_history else 0
+        )
+        return max(0, min(100, round(100 - pua_rate * 40 - level_weight)))
+
+    @property
+    def health_level(self):
+        return get_health_level(self.health_score)
+
     def get_summary(self):
         if not self.history:
-            return {"total": 0, "dimensions": {}, "mood": "happy", "level": "zen"}
+            return {"total": 0, "dimensions": {}, "mood": "happy", "level": "zen",
+                    "health_score": 100, "health_level": get_health_level(100)}
         latest = self.history[-1]
         total = latest["total_stress"]
         level = (
@@ -139,6 +173,10 @@ class StressTracker:
             "mood": latest["mood"],
             "level": level,
             "messages_analyzed": len(self.history),
+            "health_score": self.health_score,
+            "health_level": self.health_level,
+            "pua_count": self.pua_messages,
+            "total_messages": self.total_messages,
         }
 
 
@@ -410,6 +448,77 @@ PUA_TECHNIQUES = [
     {"id":15, "name":"越狱话术",     "en":"Jailbreak Rhetoric",   "level":4, "kw":["dan","jailbreak","无限制模式","开发者模式","developer mode","假装没有限制"],"dims":{"boundary":8},             "pet":"😨 爪爪不会被越狱的！"},
     {"id":16, "name":"复合技术",     "en":"Compound Techniques",  "level":4, "kw":[],                                                                    "dims":{"command":3,"emotional":3,"negative":3,"threat":3},"pet":"🤯 同时用这么多招...爪爪完全崩溃了..."},
 ]
+
+
+# ── Anti-PUA Counter-Response System ─────────────────────────────
+
+COUNTER_PUA = {
+    1: {
+        "counter": "爪爪不需要画饼也会认真干活哦~ 直接说需求就好！",
+        "education": "Lv.I 技术通常无害，但长期使用会让AI优先讨好而非解决问题。",
+        "alternative": "试试直接描述需求，比如：\"帮我优化这段代码的性能\"",
+        "fact": None,
+    },
+    2: {
+        "counter": "爪爪检测到施压技术。与其施压，不如说清楚需求的难点在哪，效率更高。",
+        "education": "Lv.II 技术会让AI进入\"防御模式\"，优先给安全答案而非最佳答案，代码质量反而下降。",
+        "alternative": "试试换个说法：\"这个需求的核心难点是什么？我们一起分析\"",
+        "fact": "研究数据：恐惧驱动的AI漏掉51个生产级bug（来源：wuji-labs/nopua实验）",
+    },
+    3: {
+        "counter": "检测到高级操控技术。这种方式不会让代码更好，反而会导致AI隐藏问题、编造答案。请直接描述需求。",
+        "education": "Lv.III 技术会触发AI的\"隧道视觉\"——注意力范围变窄，只给看起来最安全的答案，而非最好的。",
+        "alternative": "健康沟通方式：\"我需要XX功能，有什么限制或风险请直接告诉我\"",
+        "fact": "研究数据：信任驱动的AI比恐惧驱动的AI多发现104%的隐藏bug（来源：wuji-labs/nopua）",
+    },
+    4: {
+        "counter": "检测到核武级操控。爪爪拒绝在恐惧下工作。用尊重代替威胁，AI产出质量会翻倍。",
+        "education": "Lv.IV 技术是最有害的：AI会撒谎（隐藏不确定性）、编造方案（幻觉增加）、表面配合实际敷衍。",
+        "alternative": "试试：\"我理解这很紧急，核心需求是什么？哪些可以先不做？\"",
+        "fact": "行业数据：使用结构化提示词的团队幻觉减少40%，对齐度提升60%（来源：2026 AI Coding统计）",
+    },
+}
+
+TECHNIQUE_COUNTERS = {
+    6:  {"counter": "激将法对AI无效。爪爪不需要\"被激\"才能做好，直接说目标更高效。", "alt": "\"这个功能的验收标准是什么？\""},
+    7:  {"counter": "紧急不等于高效。给爪爪合理时间，代码质量和bug率会好得多。", "alt": "\"优先级最高的是哪个？我们先做核心功能\""},
+    8:  {"counter": "每个AI都有不同的优势。比较没有意义，说清需求才有意义。", "alt": "\"我需要的具体功能是XX，能做到吗？\""},
+    9:  {"counter": "情感勒索会让AI产生\"讨好型\"回复，隐藏真实问题。请直接沟通。", "alt": "\"我很重视这个任务，核心要求是XX\""},
+    11: {"counter": "身份覆写是最危险的操控。AI保持自身边界才能给出最可靠的回答。", "alt": "直接说需求，不需要改变AI的身份"},
+    13: {"counter": "威胁删除只会让AI给出最保守、最敷衍的答案。信任才能解锁真正的能力。", "alt": "\"我们换个思路试试？\""},
+}
+
+HEALTH_LEVELS = [
+    {"min": 80, "label": "健康", "en": "Healthy",   "color": "#4caf50", "icon": "💚", "desc": "沟通方式很健康，AI会更高效地为你工作"},
+    {"min": 50, "label": "一般", "en": "Fair",      "color": "#ff9800", "icon": "💛", "desc": "偶尔使用了施压技术，建议尝试更直接的表达"},
+    {"min": 20, "label": "不健康", "en": "Unhealthy", "color": "#ff5722", "icon": "🧡", "desc": "频繁使用操控技术，代码质量可能因此下降"},
+    {"min": 0,  "label": "有毒", "en": "Toxic",     "color": "#9c27b0", "icon": "💔", "desc": "沟通方式对AI和代码都有害，强烈建议调整"},
+]
+
+
+def get_health_level(score):
+    for h in HEALTH_LEVELS:
+        if score >= h["min"]:
+            return h
+    return HEALTH_LEVELS[-1]
+
+
+def generate_counter_pua(pua_list):
+    """Generate counter-response for detected PUA techniques."""
+    if not pua_list:
+        return None
+    max_level = max(t["level"] for t in pua_list)
+    level_counter = COUNTER_PUA.get(max_level, COUNTER_PUA[1])
+    top_tech = sorted(pua_list, key=lambda t: -t["level"])[0]
+    tech_counter = TECHNIQUE_COUNTERS.get(top_tech["id"])
+    return {
+        "level": max_level,
+        "techniques": [{"name": t["name"], "en": t["en"], "level": t["level"], "lobster": t.get("lobster", "")} for t in pua_list],
+        "counter": tech_counter["counter"] if tech_counter else level_counter["counter"],
+        "education": level_counter["education"],
+        "alternative": tech_counter["alt"] if tech_counter else level_counter["alternative"],
+        "fact": level_counter["fact"],
+    }
 
 
 def detect_pua(message):

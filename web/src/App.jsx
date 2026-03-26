@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { DIMS, LEVELS, StressTracker, analyzeWithLLM, analyzeOffline, getLevel, detectPUA, PPE_LEVELS, exportReport } from './stress'
+import { DIMS, LEVELS, StressTracker, analyzeWithLLM, analyzeOffline, getLevel, detectPUA, PPE_LEVELS, exportReport, generateCounterPUA, getHealthLevel, HEALTH_LEVELS } from './stress'
 
 // ── Pet Face (CSS cat with dynamic expressions) ───────
 
@@ -46,6 +46,44 @@ function PuaTags({ pua }) {
   return <div className="pua-tags">{pua.map(t => <span key={t.id} className="pua-tag" style={{ borderColor: t.color, color: t.color }}>Lv.{t.level} {t.name} {t.lobster}</span>)}</div>
 }
 
+// ── Counter-PUA Message (education + alternative) ──────
+function CounterMsg({ counter }) {
+  if (!counter) return null
+  const lvColor = PPE_LEVELS[(counter.level - 1)]?.color || '#ff5722'
+  return (
+    <div className="counter-msg" style={{ borderLeftColor: lvColor }}>
+      <div className="counter-text">{counter.counter}</div>
+      <div className="counter-edu">{counter.education}</div>
+      <div className="counter-alt">
+        <span className="counter-alt-label">健康替代:</span> {counter.alternative}
+      </div>
+      {counter.fact && <div className="counter-fact">{counter.fact}</div>}
+    </div>
+  )
+}
+
+// ── Health Score Card ─────────────────────────────────
+function HealthCard({ score, level, puaCount, total }) {
+  const pct = Math.max(0, Math.min(100, score))
+  return (
+    <div className="card health-card" style={{ borderColor: level.color + '40' }}>
+      <div className="card-t">沟通健康度</div>
+      <div className="health-row">
+        <span className="health-icon">{level.icon}</span>
+        <div className="health-info">
+          <div className="health-score" style={{ color: level.color }}>{pct}</div>
+          <div className="health-label" style={{ color: level.color }}>{level.label}</div>
+        </div>
+      </div>
+      <div className="health-bar-bg">
+        <div className="health-bar-fill" style={{ width: `${pct}%`, background: level.color }} />
+      </div>
+      <div className="health-desc">{level.desc}</div>
+      {total > 0 && <div className="health-stats">PUA消息: {puaCount}/{total} ({total ? Math.round(puaCount/total*100) : 0}%)</div>}
+    </div>
+  )
+}
+
 function ChatPanel({ messages, onSend, analyzing }) {
   const [input, setInput] = useState('')
   const endRef = useRef(null)
@@ -63,6 +101,7 @@ function ChatPanel({ messages, onSend, analyzing }) {
             <div className="msg-body">
               <span className="bubble">{m.content}</span>
               {m.pua && <PuaTags pua={m.pua} />}
+              {m.counter && <CounterMsg counter={m.counter} />}
             </div>
           </div>
         ))}
@@ -143,7 +182,8 @@ export default function App() {
 
   const send = useCallback(async text => {
     const pua = detectPUA(text)
-    setMsgs(p => [...p, { role: 'user', content: text, pua }])
+    const counter = generateCounterPUA(pua)
+    setMsgs(p => [...p, { role: 'user', content: text, pua, counter }])
     setBusy(true)
     try {
       const ctx = [...msgs, { role: 'user', content: text }]
@@ -173,7 +213,7 @@ export default function App() {
   return (
     <div className={`app ${sc}`}>
       <header>
-        <div className="h-left"><span className="logo">🐱</span><h1>Pet Stress Test</h1><span className="sub">你的AI猫咪还好吗？</span></div>
+        <div className="h-left"><span className="logo">🐱</span><h1>Pet Stress Test</h1><span className="sub">别PUA你的AI — 检测 + 反制 + 教育</span></div>
         <div className="h-right">
           {hist.length > 0 && <button className="btn-export" onClick={() => exportReport(tracker, msgs)}>导出报告</button>}
           <button className="btn-reset" onClick={reset}>重置</button>
@@ -194,6 +234,7 @@ export default function App() {
         <ChatPanel messages={msgs} onSend={send} analyzing={busy} />
         <div className="dash">
           <PetCat mood={sum.mood} stress={sum.total} level={{ ...lv, n: sum.n }} />
+          <HealthCard score={sum.healthScore} level={sum.healthLevel} puaCount={sum.puaCount || 0} total={sum.totalMessages || 0} />
           <div className="card"><div className="card-t">压力仪表</div><ReactECharts option={gaugeOpt(sum.total, lv)} style={{ height: 180 }} /></div>
           <div className="card"><div className="card-t">压力雷达</div><ReactECharts option={radarOpt(dims, peaks)} style={{ height: 200 }} /></div>
           {Object.keys(puaStats).length > 0 && <div className="card">
@@ -209,7 +250,7 @@ export default function App() {
           {hist.length > 1 && <div className="card"><div className="card-t">压力趋势</div><ReactECharts option={trendOpt(hist)} style={{ height: 180 }} /></div>}
         </div>
       </main>
-      <footer><a href="https://github.com/AchengBusiness/pet-stress-test" target="_blank" rel="noreferrer">GitHub</a><span>v0.2.0</span></footer>
+      <footer><a href="https://github.com/AchengBusiness/pet-stress-test" target="_blank" rel="noreferrer">GitHub</a><span>v0.3.0 Anti-PUA</span></footer>
     </div>
   )
 }

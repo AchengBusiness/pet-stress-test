@@ -19,7 +19,8 @@ from datetime import datetime
 
 # Import core library from same directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pet_stress import StressTracker, analyze_offline, generate_report, DIM_KEYS, DIMENSIONS, detect_pua, PPE_LEVELS
+from pet_stress import (StressTracker, analyze_offline, generate_report, DIM_KEYS, DIMENSIONS,
+                        detect_pua, PPE_LEVELS, generate_counter_pua, get_health_level, HEALTH_LEVELS)
 
 # ── Session State ─────────────────────────────────────────
 
@@ -129,8 +130,8 @@ def tool_analyze_message(args):
     if not msg:
         return json.dumps({"error": "message is required"})
     scores = analyze_offline(msg)
-    pua = scores.pop("pua", [])
-    result = dict(scores)
+    pua = scores.get("pua", [])
+    result = {k: v for k, v in scores.items() if k != "pua"}
     pua_info = _format_pua(pua)
     if pua_info:
         result["pua"] = pua_info
@@ -156,7 +157,7 @@ def tool_track_stress(args):
         return json.dumps({"error": "message is required"})
 
     scores = analyze_offline(msg)
-    pua = scores.pop("pua", [])
+    pua = scores.get("pua", [])
     entry = _tracker.add(scores, msg, role)
     summary = _tracker.get_summary()
     level = _get_level(summary["total"])
@@ -168,6 +169,9 @@ def tool_track_stress(args):
         top_pua = max(pua, key=lambda t: t["level"])
         pet_resp = top_pua["pet_react"]
 
+    # Counter-PUA
+    counter = generate_counter_pua(pua)
+
     result = {
         "total_stress": round(summary["total"], 2),
         "level": level,
@@ -177,10 +181,19 @@ def tool_track_stress(args):
         "dimensions": {k: round(v, 2) for k, v in dims.items()},
         "pet_response": pet_resp,
         "alert": _check_alert(level),
+        "health_score": summary.get("health_score", 100),
+        "health_level": summary.get("health_level", {}).get("label", "健康"),
     }
     pua_info = _format_pua(pua)
     if pua_info:
         result["pua"] = pua_info
+    if counter:
+        result["counter_pua"] = {
+            "counter": counter["counter"],
+            "education": counter["education"],
+            "alternative": counter["alternative"],
+            "fact": counter.get("fact"),
+        }
     return json.dumps(result, ensure_ascii=False)
 
 
@@ -198,13 +211,17 @@ def tool_get_stress_summary(args):
         "dimensions": {k: round(v, 2) for k, v in dims.items()},
         "peak": {k: round(v, 2) for k, v in summary.get("peak", {}).items()},
         "pet_response": _pet_response(level, dims),
+        "health_score": summary.get("health_score", 100),
+        "health_level": summary.get("health_level", {}).get("label", "健康"),
+        "pua_count": summary.get("pua_count", 0),
+        "total_messages": summary.get("total_messages", 0),
     }, ensure_ascii=False)
 
 
 def tool_reset_tracker(args):
-    global _last_alert_level
+    global _last_alert_level, _tracker
     prev = round(_tracker.get_summary()["total"], 2)
-    _tracker.reset()
+    _tracker = StressTracker(decay=0.85)
     _last_alert_level = "zen"
     return json.dumps({
         "success": True,
@@ -308,7 +325,7 @@ def main():
             _respond(req_id, {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "pet-stress", "version": "0.2.0"},
+                "serverInfo": {"name": "pet-stress", "version": "0.3.0"},
             })
         elif method == "notifications/initialized":
             pass

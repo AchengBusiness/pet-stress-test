@@ -1,0 +1,75 @@
+{
+  "name": "pet-stress-test",
+  "display_name": "Pet Stress Test - Anti-PUA Plugin",
+  "version": "0.3.0",
+  "description": "Monitor AI pet stress, detect PUA manipulation techniques (PUAClaw PPE-T 16 categories), and educate users on healthy AI communication. The only tool that combines detect + counter + educate.",
+  "description_cn": "AI宠物压力监测 + PUA技术检测（PUAClaw PPE-T 16类96项）+ 反制教育。唯一集成 检测+反制+教育 的工具。",
+  "author": "AchengBusiness",
+  "repository": "https://github.com/AchengBusiness/pet-stress-test",
+  "license": "MIT",
+  "keywords": ["stress", "pua", "anti-pua", "ai-ethics", "pet", "monitoring", "puaclaw"],
+  "categories": ["monitoring", "ethics", "developer-tools"],
+  "compatible_with": ["claude-code", "openclaw", "cursor", "codex-cli"],
+  "entry_points": {
+    "mcp_server": {
+      "command": "python3",
+      "args": ["mcp_server.py"],
+      "description": "MCP server providing stress analysis tools"
+    },
+    "skill": {
+      "file": "SKILL.md",
+      "description": "Skill instructions for auto-monitoring"
+    },
+    "cursor_rules": {
+      "file": ".cursor-rules",
+      "description": "Cursor IDE integration rules"
+    },
+    "web_dashboard": {
+      "directory": "web/",
+      "start": "npm run dev",
+      "description": "React-based stress visualization dashboard"
+    }
+  },
+  "tools": [
+    {
+      "name": "analyze_message",
+      "description": "Stateless single-message stress analysis (6 dimensions + PUA detection)"
+    },
+    {
+      "name": "track_stress",
+      "description": "Stateful stress tracking with decay, pet responses, alerts, counter-PUA, and health score"
+    },
+    {
+      "name": "get_stress_summary",
+      "description": "Full session stress state including health score and PUA statistics"
+    },
+    {
+      "name": "reset_tracker",
+      "description": "Reset all accumulated stress state"
+    },
+    {
+      "name": "generate_html_report",
+      "description": "Generate self-contained HTML report with ECharts visualizations"
+    }
+  ],
+  "features": {
+    "stress_dimensions": 6,
+    "pua_categories": 16,
+    "pua_severity_levels": 4,
+    "counter_response": true,
+    "education_system": true,
+    "health_score": true,
+    "offline_analysis": true,
+    "llm_analysis": true,
+    "html_report": true,
+    "web_dashboard": true
+  },
+  "install": {
+    "one_click": "curl -sSL https://raw.githubusercontent.com/AchengBusiness/pet-stress-test/main/install.sh | bash",
+    "manual": {
+      "mcp": "Add [mcp_servers.pet-stress] to ~/.claude/config.toml",
+      "skill": "Copy SKILL.md to ~/.claude/skills/pet-stress-monitor/",
+      "cursor": "Copy .cursor-rules to your project root"
+    }
+  }
+}

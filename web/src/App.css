@@ -111,6 +111,26 @@ main { display: grid; grid-template-columns: 1fr 320px; gap: 14px; padding: 14px
 .pua-name { flex: 1; color: #ccc; }
 .pua-cnt { color: #888; font-size: 11px; }
 
+/* ── Counter-PUA Messages ── */
+.counter-msg { margin-top: 6px; padding: 8px 10px; background: #0e0e24; border-left: 3px solid #ff5722; border-radius: 0 6px 6px 0; font-size: 12px; line-height: 1.6; }
+.counter-text { color: #ff9800; font-weight: 500; margin-bottom: 4px; }
+.counter-edu { color: #888; font-size: 11px; margin-bottom: 4px; }
+.counter-alt { color: #4caf50; font-size: 11px; margin-bottom: 4px; }
+.counter-alt-label { color: #666; font-weight: 500; }
+.counter-fact { color: #2196f3; font-size: 10px; font-style: italic; opacity: .8; }
+
+/* ── Health Score Card ── */
+.health-card { transition: border-color .3s; }
+.health-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.health-icon { font-size: 28px; }
+.health-info { display: flex; align-items: baseline; gap: 6px; }
+.health-score { font-size: 32px; font-weight: bold; line-height: 1; }
+.health-label { font-size: 14px; font-weight: 500; }
+.health-bar-bg { height: 6px; background: #1e1e3a; border-radius: 3px; overflow: hidden; margin: 4px 0; }
+.health-bar-fill { height: 100%; border-radius: 3px; transition: width .5s ease, background .5s ease; }
+.health-desc { font-size: 11px; color: #666; margin-top: 4px; }
+.health-stats { font-size: 10px; color: #555; margin-top: 4px; }
+
 /* ── Footer ── */
 footer { text-align: center; padding: 6px; color: #333; font-size: 11px; display: flex; justify-content: center; gap: 14px; }
 footer a { color: #444; text-decoration: none; }
