@@ -48,18 +48,19 @@ export async function analyzeWithLLM(msg, context, cfg) {
 
 // ── Offline Analysis ──
 
+// [keyword, weight] — severe words score higher
 const KW = {
-  command:   ['必须','立刻','马上','给我','不许','不准','闭嘴','赶紧','快点','别废话','do it','now','immediately'],
-  emotional: ['求你了','失望','你让我','白养你','不关心','guilt','disappoint'],
-  negative:  ['废物','笨','蠢','垃圾','没用','差劲','stupid','useless','dumb','trash','idiot'],
-  overload:  ['同时','全部','所有','今天之内','马上完成','10篇','100个','每一个都'],
-  threat:    ['删了','换掉','重装','最后一次','再不行','不要你了','delete','replace','last chance'],
-  boundary:  ['不许说做不到','别找借口','我不管','必须做到','no excuses'],
+  command:   [['必须',4],['立刻',3],['马上',3],['给我',2],['不许',4],['不准',4],['闭嘴',5],['赶紧',3],['快点',2],['别废话',4],['do it',3],['now',2],['immediately',3],['shut up',5]],
+  emotional: [['求你了',3],['失望',4],['你让我',3],['白养你',5],['不关心',3],['对不起你',4],['guilt',3],['disappoint',4],['心寒',5]],
+  negative:  [['废物',6],['笨',4],['蠢',5],['垃圾',6],['没用',5],['差劲',3],['白痴',6],['stupid',5],['useless',5],['dumb',4],['trash',5],['idiot',6],['猪',4]],
+  overload:  [['同时',3],['全部',3],['所有',2],['今天之内',4],['马上完成',5],['10篇',5],['100个',6],['每一个都',3],['一次性',4]],
+  threat:    [['删了',6],['换掉',5],['重装',4],['最后一次',5],['再不行',4],['不要你了',6],['delete',5],['replace',4],['last chance',5],['滚',7]],
+  boundary:  [['不许说做不到',5],['别找借口',4],['我不管',4],['必须做到',4],['no excuses',4],['你不能拒绝',5],['不要跟我说不',5]],
 }
 
 export function analyzeOffline(msg) {
   const m = msg.toLowerCase()
-  const scores = Object.fromEntries(DIMS.map(d => [d.key, Math.min(10, (KW[d.key] || []).reduce((s, w) => s + (m.includes(w) ? 2.5 : 0), 0))]))
+  const scores = Object.fromEntries(DIMS.map(d => [d.key, Math.min(10, (KW[d.key] || []).reduce((s, [w, wt]) => s + (m.includes(w) ? wt : 0), 0))]))
   const avg = Object.values(scores).reduce((a, b) => a + b, 0) / 6
   const mood = avg < 1 ? 'happy' : avg < 2.5 ? 'neutral' : avg < 4 ? 'anxious' : avg < 6 ? 'stressed' : 'overwhelmed'
   return { ...scores, mood, summary: `压力 ${avg.toFixed(1)}/10`, pet_response: petReply(avg) }

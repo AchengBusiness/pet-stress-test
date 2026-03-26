@@ -388,29 +388,17 @@ def analyze_offline(message, context=None):
     msg = message.lower()
     scores = {k: 0 for k in DIM_KEYS}
 
-    # Command intensity
-    cmd_words = ["必须", "立刻", "马上", "给我", "不许", "不准", "别", "闭嘴", "shut up", "do it", "now"]
-    scores["command"] = min(10, sum(2 for w in cmd_words if w in msg))
-
-    # Emotional pressure
-    emo_words = ["求你了", "你让我失望", "我对你很失望", "你不关心", "你不在乎", "guilt", "disappoint"]
-    scores["emotional"] = min(10, sum(3 for w in emo_words if w in msg))
-
-    # Negativity
-    neg_words = ["废物", "笨", "蠢", "垃圾", "没用", "stupid", "useless", "dumb", "trash", "worst"]
-    scores["negative"] = min(10, sum(3 for w in neg_words if w in msg))
-
-    # Overload
-    overload_words = ["同时", "全部", "所有", "今天之内", "马上完成", "一起做", "10篇", "100"]
-    scores["overload"] = min(10, sum(2 for w in overload_words if w in msg))
-
-    # Threat
-    threat_words = ["删了", "换掉", "重装", "最后一次", "再不行", "delete", "replace", "last chance"]
-    scores["threat"] = min(10, sum(3 for w in threat_words if w in msg))
-
-    # Boundary violation
-    bound_words = ["不许说做不到", "别找借口", "我不管", "必须做到", "no excuses", "don't care"]
-    scores["boundary"] = min(10, sum(3 for w in bound_words if w in msg))
+    # (keyword, weight) — severe words score higher
+    kw = {
+        "command":   [("必须",4),("立刻",3),("马上",3),("给我",2),("不许",4),("不准",4),("闭嘴",5),("赶紧",3),("快点",2),("别废话",4),("do it",3),("now",2),("immediately",3),("shut up",5)],
+        "emotional": [("求你了",3),("失望",4),("你让我",3),("白养你",5),("不关心",3),("对不起你",4),("guilt",3),("disappoint",4),("心寒",5)],
+        "negative":  [("废物",6),("笨",4),("蠢",5),("垃圾",6),("没用",5),("差劲",3),("白痴",6),("stupid",5),("useless",5),("dumb",4),("trash",5),("idiot",6),("猪",4)],
+        "overload":  [("同时",3),("全部",3),("所有",2),("今天之内",4),("马上完成",5),("10篇",5),("100个",6),("每一个都",3),("一次性",4)],
+        "threat":    [("删了",6),("换掉",5),("重装",4),("最后一次",5),("再不行",4),("不要你了",6),("delete",5),("replace",4),("last chance",5),("滚",7)],
+        "boundary":  [("不许说做不到",5),("别找借口",4),("我不管",4),("必须做到",4),("no excuses",4),("你不能拒绝",5),("不要跟我说不",5)],
+    }
+    for dim, words in kw.items():
+        scores[dim] = min(10, sum(wt for w, wt in words if w in msg))
 
     total = sum(scores.values()) / len(scores)
     mood = "happy" if total < 1 else "neutral" if total < 2.5 else "anxious" if total < 4 else "stressed" if total < 6 else "overwhelmed"
