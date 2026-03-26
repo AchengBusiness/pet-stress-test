@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { DIMS, LEVELS, StressTracker, analyzeWithLLM, analyzeOffline, getLevel, detectPUA, PPE_LEVELS } from './stress'
+import { DIMS, LEVELS, StressTracker, analyzeWithLLM, analyzeOffline, getLevel, detectPUA, PPE_LEVELS, exportReport } from './stress'
 
 // ── Pet Face (CSS cat with dynamic expressions) ───────
 
@@ -175,6 +175,7 @@ export default function App() {
       <header>
         <div className="h-left"><span className="logo">🐱</span><h1>Pet Stress Test</h1><span className="sub">你的AI猫咪还好吗？</span></div>
         <div className="h-right">
+          {hist.length > 0 && <button className="btn-export" onClick={() => exportReport(tracker, msgs)}>导出报告</button>}
           <button className="btn-reset" onClick={reset}>重置</button>
           <button className="btn-cfg" onClick={() => setCfgOpen(v => !v)}>⚙</button>
         </div>
