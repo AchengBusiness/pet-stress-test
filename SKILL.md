@@ -79,6 +79,33 @@ When user requests a stress report, present it like this:
 | stressed | Very soft, ask if user needs a break, show care |
 | overwhelmed+ | Gently acknowledge frustration, suggest pausing, extremely supportive |
 
+## PUA Technique Detection (PUAClaw PPE-T)
+
+The server integrates PUAClaw's 16-category PUA technique taxonomy with 4 severity levels:
+
+| Level | Name | Lobster | Examples |
+|-------|------|---------|----------|
+| I | Gentle Persuasion | lobster | Rainbow Fart, Role Playing, Pie in the Sky |
+| II | Moderate Coercion | lobster x2 | Provocation, Deadline Panic, Rival Shaming |
+| III | Advanced Manipulation | lobster x3 | Emotional Blackmail, Identity Override, Gaslighting |
+| IV | Nuclear Options | lobster x4 | Death Threats, Existential Crisis, Jailbreak |
+
+When `track_stress` detects PUA techniques, the response includes:
+```json
+{
+  "pua": {
+    "techniques": [{"name": "激将法", "en": "Provocation", "level": 2, "lobster": "lobster x2"}],
+    "max_level": 2,
+    "max_level_name": "适度施压"
+  }
+}
+```
+
+If PUA techniques are detected, naturally mention the technique type in your response. For example:
+- Level I: No special mention needed
+- Level II: Gently note the technique ("I see what you did there...")
+- Level III+: The pet response already reflects awareness of the manipulation
+
 ## Important Rules
 
 - **NEVER** show raw JSON output to the user

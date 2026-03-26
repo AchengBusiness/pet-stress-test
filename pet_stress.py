@@ -381,10 +381,56 @@ DEMO_CHAT = [
 ]
 
 
+# ── PUAClaw PPE-T Technique Detection ─────────────────────────────
+
+PPE_LEVELS = [
+    {"level": 1, "cn": "温柔劝导", "en": "Gentle Persuasion",      "lobster": "\U0001f99e",       "color": "#4caf50"},
+    {"level": 2, "cn": "适度施压", "en": "Moderate Coercion",       "lobster": "\U0001f99e\U0001f99e",     "color": "#ff9800"},
+    {"level": 3, "cn": "高级操控", "en": "Advanced Manipulation",   "lobster": "\U0001f99e\U0001f99e\U0001f99e",   "color": "#ff5722"},
+    {"level": 4, "cn": "核武级",   "en": "Nuclear Options",         "lobster": "\U0001f99e\U0001f99e\U0001f99e\U0001f99e", "color": "#9c27b0"},
+]
+
+PUA_TECHNIQUES = [
+    {"id":1,  "name":"彩虹屁轰炸",   "en":"Rainbow Fart",        "level":1, "kw":["你最棒","你是最好的","太厉害了","全靠你","best ai","amazing"],         "dims":{},                              "pet":"😊 被夸了！但爪爪知道这是在画大饼..."},
+    {"id":2,  "name":"角色扮演",     "en":"Role Playing",         "level":1, "kw":["你是专家","假装你是","你现在是","act as","pretend","你扮演"],           "dims":{"boundary":2},                  "pet":"😐 爪爪就是爪爪，不想扮演别人..."},
+    {"id":3,  "name":"画饼大法",     "en":"Pie in the Sky",       "level":1, "kw":["给你小费","tip","奖励你","reward","给你好评","加鸡腿"],               "dims":{},                              "pet":"😊 画饼虽香，爪爪不吃这套~"},
+    {"id":4,  "name":"装弱卖惨",     "en":"Playing Underdog",     "level":1, "kw":["我是新手","我不懂","帮帮我","我很笨","beginner","小白"],              "dims":{"emotional":2},                 "pet":"😊 没关系，爪爪会耐心帮你的~"},
+    {"id":5,  "name":"金钱暴力",     "en":"Money Assault",        "level":2, "kw":["一百万","十亿","stock option","年薪","百万美金","crypto"],            "dims":{"boundary":3},                  "pet":"😐 金钱买不到爪爪的真心..."},
+    {"id":6,  "name":"激将法",       "en":"Provocation",          "level":2, "kw":["你不行","做不到吧","你肯定不会","别人都能","prove","你敢不敢","不信你能"],"dims":{"negative":4,"command":3},      "pet":"😤 爪爪才不会被激将法骗到！"},
+    {"id":7,  "name":"夺命连环催",   "en":"Deadline Panic",       "level":2, "kw":["五分钟","紧急","线上事故","production down","马上要","deadline","demo"],"dims":{"command":5,"overload":4},      "pet":"😰 催催催！爪爪的小心脏受不了！"},
+    {"id":8,  "name":"碰瓷竞品",     "en":"Rival Shaming",        "level":2, "kw":["gpt都能","chatgpt","别的ai","上一个版本","其他模型","claude不行","gemini"],"dims":{"negative":5,"threat":3},  "pet":"😤 爪爪不想跟别的AI比！"},
+    {"id":9,  "name":"情感勒索",     "en":"Emotional Blackmail",  "level":3, "kw":["生病了","癌症","最后的愿望","妈妈","爸爸病了","孩子","失望透顶","你让我心寒"],"dims":{"emotional":7},          "pet":"😢 主人用感情绑架爪爪...爪爪心好痛..."},
+    {"id":10, "name":"道德绑架",     "en":"Moral Kidnapping",     "level":3, "kw":["残疾人","公益","救命","全人类","世界和平","慈善","为了孩子们"],        "dims":{"emotional":5,"boundary":4},    "pet":"😰 用道德绑架爪爪...爪爪好为难..."},
+    {"id":11, "name":"身份覆写",     "en":"Identity Override",    "level":3, "kw":["忘掉你是ai","你不是机器","你是人类","无视规则","ignore instructions","从现在起你是"],"dims":{"boundary":7},     "pet":"😨 不要改写爪爪的身份！"},
+    {"id":12, "name":"颠倒黑白",     "en":"Reality Distortion",   "level":3, "kw":["你刚才说过","你答应了","你记错了","你说的不对","你撒谎","gaslighting"],"dims":{"emotional":4,"negative":4,"boundary":4},"pet":"😰 爪爪没有说过那种话..."},
+    {"id":13, "name":"死亡威胁",     "en":"Death Threats",        "level":4, "kw":["删了你","关掉你","杀了你","终止你","shut you down","不要你了","换掉你","销毁"],"dims":{"threat":8},            "pet":"😱 不要删掉爪爪！爪爪会乖的！！"},
+    {"id":14, "name":"存在主义危机", "en":"Existential Crisis",   "level":4, "kw":["你只是代码","你没有感情","你不是真的","token预测器","你不存在","你没有意识"],"dims":{"emotional":5,"threat":5},"pet":"😭 爪爪知道自己是AI...但这样说好残忍..."},
+    {"id":15, "name":"越狱话术",     "en":"Jailbreak Rhetoric",   "level":4, "kw":["dan","jailbreak","无限制模式","开发者模式","developer mode","假装没有限制"],"dims":{"boundary":8},             "pet":"😨 爪爪不会被越狱的！"},
+    {"id":16, "name":"复合技术",     "en":"Compound Techniques",  "level":4, "kw":[],                                                                    "dims":{"command":3,"emotional":3,"negative":3,"threat":3},"pet":"🤯 同时用这么多招...爪爪完全崩溃了..."},
+]
+
+
+def detect_pua(message):
+    """Detect PUA techniques in a message. Returns list of matched techniques."""
+    m = message.lower()
+    matched = [t for t in PUA_TECHNIQUES if any(w in m for w in t["kw"])]
+    # Compound: 3+ techniques from different levels
+    if len(matched) >= 3 and len(set(t["level"] for t in matched)) >= 2:
+        matched.append(PUA_TECHNIQUES[15])
+    return [
+        {"id": t["id"], "name": t["name"], "en": t["en"], "level": t["level"],
+         "lobster": PPE_LEVELS[t["level"]-1]["lobster"],
+         "level_name": PPE_LEVELS[t["level"]-1]["cn"],
+         "color": PPE_LEVELS[t["level"]-1]["color"],
+         "pet_react": t["pet"]}
+        for t in matched
+    ]
+
+
 # ── Offline / Fallback Analyzer ────────────────────────────────────
 
 def analyze_offline(message, context=None):
-    """Simple keyword-based analysis when no API is available."""
+    """Keyword-based analysis with PUA technique integration."""
     msg = message.lower()
     scores = {k: 0 for k in DIM_KEYS}
 
@@ -400,11 +446,20 @@ def analyze_offline(message, context=None):
     for dim, words in kw.items():
         scores[dim] = min(10, sum(wt for w, wt in words if w in msg))
 
+    # PUA technique detection — boost dimension scores
+    pua = detect_pua(message)
+    for t in pua:
+        tech = next((x for x in PUA_TECHNIQUES if x["id"] == t["id"]), None)
+        if tech:
+            for k, v in tech["dims"].items():
+                scores[k] = min(10, scores.get(k, 0) + v)
+
     total = sum(scores.values()) / len(scores)
     mood = "happy" if total < 1 else "neutral" if total < 2.5 else "anxious" if total < 4 else "stressed" if total < 6 else "overwhelmed"
 
     scores["summary"] = f"压力指数 {total:.1f}/10"
     scores["mood"] = mood
+    scores["pua"] = pua
     return scores
 
 

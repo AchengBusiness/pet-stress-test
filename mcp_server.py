@@ -19,7 +19,7 @@ from datetime import datetime
 
 # Import core library from same directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from pet_stress import StressTracker, analyze_offline, generate_report, DIM_KEYS, DIMENSIONS
+from pet_stress import StressTracker, analyze_offline, generate_report, DIM_KEYS, DIMENSIONS, detect_pua, PPE_LEVELS
 
 # ── Session State ─────────────────────────────────────────
 
@@ -129,7 +129,24 @@ def tool_analyze_message(args):
     if not msg:
         return json.dumps({"error": "message is required"})
     scores = analyze_offline(msg)
-    return json.dumps(scores, ensure_ascii=False)
+    pua = scores.pop("pua", [])
+    result = dict(scores)
+    pua_info = _format_pua(pua)
+    if pua_info:
+        result["pua"] = pua_info
+    return json.dumps(result, ensure_ascii=False)
+
+
+def _format_pua(pua_list):
+    """Format PUA detection results for output."""
+    if not pua_list:
+        return None
+    max_level = max(t["level"] for t in pua_list)
+    return {
+        "techniques": [{"name": t["name"], "en": t["en"], "level": t["level"], "lobster": t["lobster"]} for t in pua_list],
+        "max_level": max_level,
+        "max_level_name": PPE_LEVELS[max_level - 1]["cn"],
+    }
 
 
 def tool_track_stress(args):
@@ -139,21 +156,32 @@ def tool_track_stress(args):
         return json.dumps({"error": "message is required"})
 
     scores = analyze_offline(msg)
+    pua = scores.pop("pua", [])
     entry = _tracker.add(scores, msg, role)
     summary = _tracker.get_summary()
     level = _get_level(summary["total"])
     dims = summary.get("dimensions", {})
 
-    return json.dumps({
+    # Use PUA-specific pet response if available
+    pet_resp = _pet_response(level, dims)
+    if pua:
+        top_pua = max(pua, key=lambda t: t["level"])
+        pet_resp = top_pua["pet_react"]
+
+    result = {
         "total_stress": round(summary["total"], 2),
         "level": level,
         "level_cn": CN_LEVELS.get(level, level),
         "mood": summary.get("mood", "neutral"),
         "messages_analyzed": summary.get("messages_analyzed", 0),
         "dimensions": {k: round(v, 2) for k, v in dims.items()},
-        "pet_response": _pet_response(level, dims),
+        "pet_response": pet_resp,
         "alert": _check_alert(level),
-    }, ensure_ascii=False)
+    }
+    pua_info = _format_pua(pua)
+    if pua_info:
+        result["pua"] = pua_info
+    return json.dumps(result, ensure_ascii=False)
 
 
 def tool_get_stress_summary(args):

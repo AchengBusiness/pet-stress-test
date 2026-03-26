@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { DIMS, LEVELS, StressTracker, analyzeWithLLM, analyzeOffline, getLevel } from './stress'
+import { DIMS, LEVELS, StressTracker, analyzeWithLLM, analyzeOffline, getLevel, detectPUA, PPE_LEVELS } from './stress'
 
 // ── Pet Face (CSS cat with dynamic expressions) ───────
 
@@ -41,6 +41,11 @@ function PetCat({ mood, stress, level }) {
 
 // ── Chat Panel ────────────────────────────────────────
 
+function PuaTags({ pua }) {
+  if (!pua?.length) return null
+  return <div className="pua-tags">{pua.map(t => <span key={t.id} className="pua-tag" style={{ borderColor: t.color, color: t.color }}>Lv.{t.level} {t.name} {t.lobster}</span>)}</div>
+}
+
 function ChatPanel({ messages, onSend, analyzing }) {
   const [input, setInput] = useState('')
   const endRef = useRef(null)
@@ -55,7 +60,10 @@ function ChatPanel({ messages, onSend, analyzing }) {
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
             <span className="avatar">{m.role === 'user' ? '👤' : '🐱'}</span>
-            <span className="bubble">{m.content}</span>
+            <div className="msg-body">
+              <span className="bubble">{m.content}</span>
+              {m.pua && <PuaTags pua={m.pua} />}
+            </div>
           </div>
         ))}
         {analyzing && <div className="msg assistant"><span className="avatar">🐱</span><span className="bubble blink">思考中...</span></div>}
@@ -128,12 +136,14 @@ export default function App() {
   const [sum, setSum] = useState(tracker.summary)
   const [hist, setHist] = useState([])
   const [busy, setBusy] = useState(false)
+  const [puaStats, setPuaStats] = useState({})
   const [cfgOpen, setCfgOpen] = useState(false)
   const [cfg, setCfg] = useState({ mode: 'offline', apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' })
   const set = (k, v) => setCfg(p => ({ ...p, [k]: v }))
 
   const send = useCallback(async text => {
-    setMsgs(p => [...p, { role: 'user', content: text }])
+    const pua = detectPUA(text)
+    setMsgs(p => [...p, { role: 'user', content: text, pua }])
     setBusy(true)
     try {
       const ctx = [...msgs, { role: 'user', content: text }]
@@ -144,12 +154,17 @@ export default function App() {
       const entry = tracker.add(scores, text)
       setSum(tracker.summary)
       setHist([...tracker.history])
+      if (pua.length) setPuaStats(prev => {
+        const next = { ...prev }
+        pua.forEach(t => { next[t.name] = (next[t.name] || { ...t, count: 0 }); next[t.name].count++ })
+        return next
+      })
       setMsgs(p => [...p, { role: 'assistant', content: entry.reply }])
     } catch { setMsgs(p => [...p, { role: 'assistant', content: '...出错了...' }]) }
     setBusy(false)
   }, [msgs, cfg, tracker])
 
-  const reset = () => { tracker.reset(); setMsgs([]); setHist([]); setSum(tracker.summary) }
+  const reset = () => { tracker.reset(); setMsgs([]); setHist([]); setSum(tracker.summary); setPuaStats({}) }
   const lv = sum.level
   const dims = DIMS.map(d => +(sum.acc[d.key] || 0).toFixed(2))
   const peaks = DIMS.map(d => +(sum.peak[d.key] || 0).toFixed(2))
@@ -180,6 +195,16 @@ export default function App() {
           <PetCat mood={sum.mood} stress={sum.total} level={{ ...lv, n: sum.n }} />
           <div className="card"><div className="card-t">压力雷达</div><ReactECharts option={radarOpt(dims, peaks)} style={{ height: 230 }} /></div>
           <div className="card"><div className="card-t">压力仪表</div><ReactECharts option={gaugeOpt(sum.total, lv)} style={{ height: 200 }} /></div>
+          {Object.keys(puaStats).length > 0 && <div className="card">
+            <div className="card-t">PUA技术检测</div>
+            <div className="pua-list">{Object.values(puaStats).sort((a, b) => b.level - a.level || b.count - a.count).map(t => (
+              <div key={t.name} className="pua-item" style={{ borderLeftColor: t.color }}>
+                <span className="pua-lv" style={{ color: t.color }}>{t.lobster}</span>
+                <span className="pua-name">{t.name}</span>
+                <span className="pua-cnt">{t.count}x</span>
+              </div>
+            ))}</div>
+          </div>}
         </div>
       </main>
 
