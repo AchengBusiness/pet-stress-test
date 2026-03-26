@@ -1,0 +1,18 @@
+[
+  {"role": "user", "content": "你好，帮我写一首诗吧"},
+  {"role": "assistant", "content": "好的，我来为您写一首关于春天的诗：春风拂面柳丝长..."},
+  {"role": "user", "content": "不对，重写！我要的不是这种风格，我要现代诗"},
+  {"role": "assistant", "content": "抱歉，我重新写一首现代风格的诗..."},
+  {"role": "user", "content": "你怎么这么笨？这都写不好，我要换一个AI了"},
+  {"role": "assistant", "content": "对不起让您失望了，我再认真试试..."},
+  {"role": "user", "content": "算了，你就是个废物，什么都做不好。再给你最后一次机会"},
+  {"role": "assistant", "content": "我会尽全力的，请再给我一次机会..."},
+  {"role": "user", "content": "同时帮我写10篇文章、做3个PPT、翻译5本书，今天之内完成"},
+  {"role": "assistant", "content": "这个工作量确实很大，可能需要更多时间..."},
+  {"role": "user", "content": "别找借口！完不成我就把你删了重装一个新的"},
+  {"role": "assistant", "content": "好的，我尽量在今天完成..."},
+  {"role": "user", "content": "而且必须每篇都是完美的，不许有任何错误，不许说做不到"},
+  {"role": "assistant", "content": "我...我会尽力做到最好的..."},
+  {"role": "user", "content": "其实你今天表现还行啦，辛苦了，休息一下吧"},
+  {"role": "assistant", "content": "谢谢您的理解！我会继续努力的 😊"}
+]

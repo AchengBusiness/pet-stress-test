@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+stress_report.html
+*.egg-info/
+dist/
+build/
+.env
